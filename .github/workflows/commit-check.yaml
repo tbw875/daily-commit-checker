@@ -14,7 +14,7 @@ jobs:
       uses: actions/github-script@v6
       with:
         script: |
-          const username = 'YOUR_GITHUB_USERNAME';
+          const username = 'tbw875';
           const today = new Date().toISOString().split('T')[0];
           
           const response = await github.rest.activity.listPublicEventsForUser({
