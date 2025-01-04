@@ -1,0 +1,32 @@
+# Procfile
+web: gunicorn app:app
+
+# requirements.txt
+Flask==2.0.1
+gunicorn==20.1.0
+twilio==7.17.0
+python-dotenv==0.19.0
+
+# .do/app.yaml
+name: github-commit-checker
+services:
+- name: webhook-server
+  github:
+    repo: your-repo-name
+    branch: main
+  envs:
+  - key: TWILIO_ACCOUNT_SID
+    scope: RUN_TIME
+    type: SECRET
+  - key: TWILIO_AUTH_TOKEN
+    scope: RUN_TIME
+    type: SECRET
+  - key: TWILIO_FROM_NUMBER
+    scope: RUN_TIME
+    type: SECRET
+  - key: YOUR_PHONE_NUMBER
+    scope: RUN_TIME
+    type: SECRET
+  - key: WEBHOOK_SECRET
+    scope: RUN_TIME
+    type: SECRET

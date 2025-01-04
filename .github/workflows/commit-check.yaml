@@ -1,0 +1,53 @@
+name: Daily Commit Check
+
+on:
+  schedule:
+    # Runs at 8 PM UTC every day
+    - cron: '0 20 * * *'
+
+jobs:
+  check-commits:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check for today's commits
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const username = 'YOUR_GITHUB_USERNAME';
+          const today = new Date().toISOString().split('T')[0];
+          
+          const response = await github.rest.activity.listPublicEventsForUser({
+            username: username
+          });
+          
+          let commitFound = false;
+          for (const event of response.data) {
+            if (event.type === 'PushEvent') {
+              const eventDate = event.created_at.split('T')[0];
+              if (eventDate === today) {
+                commitFound = true;
+                break;
+              }
+            }
+          }
+          
+          if (!commitFound) {
+            // If no commit found, send notification via webhook
+            const webhook_url = process.env.WEBHOOK_URL;
+            const webhook_secret = process.env.WEBHOOK_SECRET;
+            
+            await fetch(webhook_url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Webhook-Secret': webhook_secret
+              },
+              body: JSON.stringify({
+                message: "Don't forget to make your daily commit!"
+              })
+            });
+          }
+    env:
+      WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+      WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
