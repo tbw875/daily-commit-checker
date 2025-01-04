@@ -13,7 +13,7 @@ TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER')
 YOUR_PHONE_NUMBER = os.getenv('YOUR_PHONE_NUMBER')
-WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET')  # Add this to verify requests
+WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET')
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
@@ -46,6 +46,12 @@ def webhook():
             'error': str(e)
         }), 500
 
-if __name__ == '__main__':
-    app.run(port=5000)
+# Health check endpoint
+@app.route('/', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'healthy'}), 200
 
+if __name__ == '__main__':
+    # Get port from environment variable or default to 8080
+    port = int(os.getenv('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
