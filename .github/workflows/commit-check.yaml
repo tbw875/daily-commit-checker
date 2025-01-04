@@ -1,4 +1,3 @@
-# .github/workflows/commit-check.yml
 name: Daily Commit Check
 
 on:
@@ -6,9 +5,7 @@ on:
     # Runs at 8 PM UTC every day
     - cron: '0 20 * * *'
   # Allow manual workflow runs
-  workflow_dispatch:
-  # Optional: add this to test the workflow manually
-  workflow_dispatch:
+  workflow_dispatch: 
 
 jobs:
   check-commits:
@@ -19,7 +16,7 @@ jobs:
       uses: actions/github-script@v6
       with:
         script: |
-          const username = 'tbw875';
+          const username = 'tbw875';  // Replace with your username
           const today = new Date().toISOString().split('T')[0];
           
           const response = await github.rest.activity.listPublicEventsForUser({
