@@ -1,9 +1,14 @@
+# .github/workflows/commit-check.yml
 name: Daily Commit Check
 
 on:
   schedule:
     # Runs at 8 PM UTC every day
     - cron: '0 20 * * *'
+  # Allow manual workflow runs
+  workflow_dispatch:
+  # Optional: add this to test the workflow manually
+  workflow_dispatch:
 
 jobs:
   check-commits:
