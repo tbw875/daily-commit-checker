@@ -2,9 +2,9 @@ name: Daily Commit Check
 
 on:
   schedule:
-    # Runs at 8 PM UTC every day
-    - cron: '0 20 * * *'
-  # Allow manual workflow runs
+    # Runs at 930 PM PST every day
+    - cron: '30 5 * * *'
+    # Allow manual workflow runs
   workflow_dispatch: 
 
 jobs:
