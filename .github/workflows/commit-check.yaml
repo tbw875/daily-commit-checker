@@ -19,7 +19,8 @@ jobs:
           
           // Helper function to convert UTC to PST
           function convertToPST(date) {
-            return new Date(date.getTime() - (8 * 60 * 60 * 1000));
+            // Use proper timezone conversion
+            return new Date(date.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
           }
           
           // Get today's date in PST
@@ -28,6 +29,21 @@ jobs:
           
           let page = 1;
           let commitFound = false;
+
+          function isInCommitWindow(eventDate) {
+            const pst = convertToPST(new Date());
+            const eventPST = convertToPST(new Date(eventDate));
+            
+            // Set today's date at 12:01 AM
+            const startOfDay = new Date(pst);
+            startOfDay.setHours(0, 1, 0, 0);
+            
+            // Set today's date at 9:30 PM
+            const endOfWindow = new Date(pst);
+            endOfWindow.setHours(21, 30, 0, 0);
+            
+            return eventPST >= startOfDay && eventPST <= endOfWindow;
+          }
           
           // Check all pages until we find a commit or run out of events
           while (!commitFound) {
@@ -45,8 +61,7 @@ jobs:
               if (event.type === 'PushEvent' || 
                   (event.type === 'PullRequestEvent' && event.payload?.action === 'closed' && event.payload?.pull_request?.merged)) {
                 
-                const eventDate = convertToPST(new Date(event.created_at)).toISOString().split('T')[0];
-                if (eventDate === today) {
+                if (isInCommitWindow(event.created_at)) {
                   commitFound = true;
                   break;
                 }
@@ -75,6 +90,8 @@ jobs:
               })
             });
           }
+
+          
     env:
       WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
       WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
