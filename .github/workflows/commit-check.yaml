@@ -66,41 +66,57 @@ jobs:
           
           // Check all pages until we find a commit or run out of events
           while (!commitFound) {
-            const response = await github.rest.activity.listPublicEventsForUser({
-              username: username,
-              per_page: 100,  // Maximum allowed
+            console.log(`Checking for commits...`);
+            
+            // Get authenticated user's repos
+            const repos = await github.rest.repos.listForAuthenticatedUser({
+              per_page: 100,
               page: page
             });
             
-            // No more events to check
-            if (response.data.length === 0) break;
+            console.log(`Found ${repos.data.length} repositories on page ${page}`);
             
-            for (const event of response.data) {
-              console.log('Checking event:', {
-                type: event.type,
-                created_at: event.created_at,
-                repository: event.repo?.name
-              });
+            // No more repos to check
+            if (repos.data.length === 0) {
+              console.log('No more repositories to check');
+              break;
+            }
+            
+            for (const repo of repos.data) {
+              console.log(`\nChecking commits in ${repo.name}...`);
               
-              if (event.type === 'PushEvent' || 
-                  (event.type === 'PullRequestEvent' && event.payload?.action === 'closed' && event.payload?.pull_request?.merged)) {
+              try {
+                // Get commits for each repo
+                const commits = await github.rest.repos.listCommits({
+                  owner: repo.owner.login,
+                  repo: repo.name,
+                  author: username,
+                  since: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(),
+                  until: new Date(new Date().setHours(23, 59, 59, 999)).toISOString()
+                });
                 
-                const inWindow = isInCommitWindow(event.created_at);
-                console.log('Event in commit window:', inWindow);
-                
-                if (inWindow) {
+                if (commits.data.length > 0) {
+                  console.log(`Found ${commits.data.length} commits today in ${repo.name}`);
                   commitFound = true;
-                  console.log('Valid commit found!');
                   break;
                 }
+              } catch (error) {
+                // Skip if we can't access the repo
+                console.log(`Skipping ${repo.name}: ${error.message}`);
+                continue;
               }
             }
             
             page++;
             
-            // Avoid checking too many pages
-            if (page > 5) break;  // Limit to 500 events
+            if (page > 5) {
+              console.log('Reached maximum page limit (5)');
+              break;
+            }
           }
+          
+          console.log('\n=== Final Result ===');
+          console.log('Commit found:', commitFound);
           
           if (!commitFound) {
             // If no commit found, send notification via webhook
@@ -123,3 +139,7 @@ jobs:
     env:
       WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
       WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+
+permissions:
+  contents: read
+  repo: read
