@@ -142,4 +142,5 @@ jobs:
 
 permissions:
   contents: read
-  repo: read
+  actions: read
+  metadata: read
