@@ -39,22 +39,29 @@ jobs:
           let commitFound = false;
 
           function isInCommitWindow(eventDate) {
-            const eventPST = new Date(eventDate);
-            const now = new Date();
+            // GitHub API returns UTC timestamps
+            const eventUTC = new Date(eventDate);
             
-            // Convert both dates to PST
+            // Convert to PST/PDT
             const pstOptions = { timeZone: 'America/Los_Angeles' };
-            const eventInPST = new Date(eventPST.toLocaleString('en-US', pstOptions));
-            const nowInPST = new Date(now.toLocaleString('en-US', pstOptions));
+            const eventPST = new Date(eventUTC.toLocaleString('en-US', pstOptions));
+            const nowPST = new Date(new Date().toLocaleString('en-US', pstOptions));
             
-            // Set window boundaries for today
-            const startOfDay = new Date(nowInPST);
+            // Get start of day in PST
+            const startOfDay = new Date(nowPST);
             startOfDay.setHours(0, 0, 0, 0);
             
-            const endOfWindow = new Date(nowInPST);
+            // Get end of window (9:30 PM PST)
+            const endOfWindow = new Date(nowPST);
             endOfWindow.setHours(21, 30, 0, 0);
             
-            return eventInPST >= startOfDay && eventInPST <= endOfWindow;
+            // Debug logging
+            console.log('Event UTC:', eventUTC);
+            console.log('Event PST:', eventPST);
+            console.log('Start of day PST:', startOfDay);
+            console.log('End of window PST:', endOfWindow);
+            
+            return eventPST >= startOfDay && eventPST <= endOfWindow;
           }
           
           // Check all pages until we find a commit or run out of events
@@ -69,17 +76,24 @@ jobs:
             if (response.data.length === 0) break;
             
             for (const event of response.data) {
-              // Check both PushEvents and merged PullRequestEvents
+              console.log('Checking event:', {
+                type: event.type,
+                created_at: event.created_at,
+                repository: event.repo?.name
+              });
+              
               if (event.type === 'PushEvent' || 
                   (event.type === 'PullRequestEvent' && event.payload?.action === 'closed' && event.payload?.pull_request?.merged)) {
                 
-                if (isInCommitWindow(event.created_at)) {
+                const inWindow = isInCommitWindow(event.created_at);
+                console.log('Event in commit window:', inWindow);
+                
+                if (inWindow) {
                   commitFound = true;
+                  console.log('Valid commit found!');
                   break;
                 }
               }
-              console.log('Event:', event.type, 'Created at:', event.created_at);
-              console.log('In commit window:', isInCommitWindow(event.created_at));
             }
             
             page++;
