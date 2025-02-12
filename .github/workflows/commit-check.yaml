@@ -1,4 +1,4 @@
-name: Daily Commit Check
+name: Check Daily Commits
 
 on:
   schedule:
@@ -11,108 +11,62 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Check for today's commits
+    - name: Check for commits
       uses: actions/github-script@v6
       with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
-          const username = 'tbw875';
-          
-          // Helper function to convert UTC to PST
-          function convertToPST(date) {
-            return new Date(date.toLocaleString('en-US', {
-              timeZone: 'America/Los_Angeles',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: false
-            }));
-          }
-          
-          // Get today's date in PST
-          const now = convertToPST(new Date());
-          const today = now.toISOString().split('T')[0];
-          
-          let page = 1;
+          const username = context.repo.owner;
           let commitFound = false;
-
-          function isInCommitWindow(eventDate) {
-            // GitHub API returns UTC timestamps
-            const eventUTC = new Date(eventDate);
-            
-            // Convert to PST/PDT
-            const pstOptions = { timeZone: 'America/Los_Angeles' };
-            const eventPST = new Date(eventUTC.toLocaleString('en-US', pstOptions));
-            const nowPST = new Date(new Date().toLocaleString('en-US', pstOptions));
-            
-            // Get start of day in PST
-            const startOfDay = new Date(nowPST);
-            startOfDay.setHours(0, 0, 0, 0);
-            
-            // Get end of window (9:30 PM PST)
-            const endOfWindow = new Date(nowPST);
-            endOfWindow.setHours(21, 30, 0, 0);
-            
-            // Debug logging
-            console.log('Event UTC:', eventUTC);
-            console.log('Event PST:', eventPST);
-            console.log('Start of day PST:', startOfDay);
-            console.log('End of window PST:', endOfWindow);
-            
-            return eventPST >= startOfDay && eventPST <= endOfWindow;
-          }
+          let page = 1;
           
-          // Check all pages until we find a commit or run out of events
-          while (!commitFound) {
-            console.log(`Checking for commits...`);
-            
-            // Get authenticated user's repos
-            const repos = await github.rest.repos.listForAuthenticatedUser({
-              per_page: 100,
-              page: page
-            });
-            
-            console.log(`Found ${repos.data.length} repositories on page ${page}`);
-            
-            // No more repos to check
-            if (repos.data.length === 0) {
-              console.log('No more repositories to check');
-              break;
-            }
-            
-            for (const repo of repos.data) {
-              console.log(`\nChecking commits in ${repo.name}...`);
-              
-              try {
-                // Get commits for each repo
-                const commits = await github.rest.repos.listCommits({
-                  owner: repo.owner.login,
-                  repo: repo.name,
-                  author: username,
-                  since: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(),
-                  until: new Date(new Date().setHours(23, 59, 59, 999)).toISOString()
-                });
-                
-                if (commits.data.length > 0) {
-                  console.log(`Found ${commits.data.length} commits today in ${repo.name}`);
-                  commitFound = true;
-                  break;
+          console.log(`Checking commits for user: ${username}`);
+          
+          try {
+            // Get today's commits across all repositories
+            const query = `query($username:String!, $since:GitTimestamp!) {
+              user(login: $username) {
+                contributionsCollection(from: $since) {
+                  commitContributionsByRepository {
+                    repository {
+                      name
+                    }
+                    contributions(first: 100) {
+                      nodes {
+                        occurredAt
+                      }
+                    }
+                  }
                 }
-              } catch (error) {
-                // Skip if we can't access the repo
-                console.log(`Skipping ${repo.name}: ${error.message}`);
-                continue;
+              }
+            }`;
+            
+            // Set the start of today in ISO format
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const variables = {
+              username: username,
+              since: today.toISOString()
+            };
+            
+            console.log('Querying with variables:', variables);
+            
+            const result = await github.graphql(query, variables);
+            console.log('API Response:', JSON.stringify(result, null, 2));
+            
+            // Check if there are any commits today
+            const contributions = result.user.contributionsCollection.commitContributionsByRepository;
+            for (const repoContrib of contributions) {
+              if (repoContrib.contributions.nodes.length > 0) {
+                console.log(`Found commits in ${repoContrib.repository.name}`);
+                commitFound = true;
+                break;
               }
             }
-            
-            page++;
-            
-            if (page > 5) {
-              console.log('Reached maximum page limit (5)');
-              break;
-            }
+          } catch (error) {
+            console.error('Error fetching commits:', error);
+            throw error;
           }
           
           console.log('\n=== Final Result ===');
@@ -135,10 +89,10 @@ jobs:
             });
           }
 
-          
     env:
       WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
       WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
 
 permissions:
   contents: read
+  actions: read
