@@ -42,11 +42,19 @@ jobs:
               }
             }`;
             
-            // Set the time range for today
+            // Set the time range for today in PST/PDT
             const now = new Date();
-            const startOfDay = new Date(now);
+            
+            // Convert to PST/PDT (UTC-8)
+            const pstOffset = -8 * 60; // -8 hours in minutes
+            const localOffset = now.getTimezoneOffset();
+            const totalOffset = pstOffset - localOffset;
+            
+            // Adjust the date to PST/PDT
+            const pstNow = new Date(now.getTime() + totalOffset * 60 * 1000);
+            const startOfDay = new Date(pstNow);
             startOfDay.setHours(0,0,0,0);
-            const endOfDay = new Date(now);
+            const endOfDay = new Date(pstNow);
             endOfDay.setHours(23,59,59,999);
             
             const variables = {
@@ -55,10 +63,10 @@ jobs:
               to: endOfDay.toISOString()
             };
             
-            console.log('Time range being checked:', {
-              from: startOfDay.toLocaleString(),
-              to: endOfDay.toLocaleString(),
-              currentTime: now.toLocaleString()
+            console.log('Time range being checked (PST/PDT):', {
+              from: startOfDay.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }),
+              to: endOfDay.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }),
+              currentTime: pstNow.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })
             });
             
             const result = await github.graphql(query, variables);
