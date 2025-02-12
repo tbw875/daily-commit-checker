@@ -22,16 +22,19 @@ jobs:
           console.log(`Checking commits for user: ${username}`);
           
           try {
-            const query = `query($username:String!, $from:DateTime!) {
+            const query = `query($username:String!, $from:DateTime!, $to:DateTime!) {
               user(login: $username) {
-                contributionsCollection(from: $from) {
+                contributionsCollection(from: $from, to: $to) {
+                  totalCommitContributions
                   commitContributionsByRepository {
                     repository {
                       name
+                      isPrivate
                     }
                     contributions(first: 100) {
                       nodes {
                         occurredAt
+                        commitCount
                       }
                     }
                   }
@@ -39,27 +42,49 @@ jobs:
               }
             }`;
             
-            // Set the start of today
-            const today = new Date();
-            today.setHours(0,0,0,0);
+            // Set the time range for today
+            const now = new Date();
+            const startOfDay = new Date(now);
+            startOfDay.setHours(0,0,0,0);
+            const endOfDay = new Date(now);
+            endOfDay.setHours(23,59,59,999);
             
             const variables = {
               username: username,
-              from: today.toISOString()
+              from: startOfDay.toISOString(),
+              to: endOfDay.toISOString()
             };
             
-            console.log('Querying with variables:', variables);
+            console.log('Time range being checked:', {
+              from: startOfDay.toLocaleString(),
+              to: endOfDay.toLocaleString(),
+              currentTime: now.toLocaleString()
+            });
             
             const result = await github.graphql(query, variables);
             console.log('API Response:', JSON.stringify(result, null, 2));
             
+            const totalCommits = result.user.contributionsCollection.totalCommitContributions;
+            console.log(`Total commits today: ${totalCommits}`);
+            
             // Check if there are any commits today
-            const contributions = result.user.contributionsCollection.commitContributionsByRepository;
-            for (const repoContrib of contributions) {
-              if (repoContrib.contributions.nodes.length > 0) {
-                console.log(`Found commits in ${repoContrib.repository.name}`);
-                commitFound = true;
-                break;
+            if (totalCommits > 0) {
+              commitFound = true;
+              console.log('Found commits today!');
+              
+              // Log details of where the commits were found
+              const contributions = result.user.contributionsCollection.commitContributionsByRepository;
+              for (const repoContrib of contributions) {
+                const repoName = repoContrib.repository.name;
+                const isPrivate = repoContrib.repository.isPrivate;
+                const commits = repoContrib.contributions.nodes;
+                
+                if (commits.length > 0) {
+                  console.log(`Repository: ${repoName} (${isPrivate ? 'private' : 'public'})`);
+                  commits.forEach(commit => {
+                    console.log(`  - ${commit.commitCount} commits at ${new Date(commit.occurredAt).toLocaleString()}`);
+                  });
+                }
               }
             }
           } catch (error) {
