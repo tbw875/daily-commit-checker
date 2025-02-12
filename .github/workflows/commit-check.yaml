@@ -18,15 +18,13 @@ jobs:
         script: |
           const username = context.repo.owner;
           let commitFound = false;
-          let page = 1;
           
           console.log(`Checking commits for user: ${username}`);
           
           try {
-            // Get today's commits across all repositories
-            const query = `query($username:String!, $since:GitTimestamp!) {
+            const query = `query($username:String!, $from:DateTime!) {
               user(login: $username) {
-                contributionsCollection(from: $since) {
+                contributionsCollection(from: $from) {
                   commitContributionsByRepository {
                     repository {
                       name
@@ -41,13 +39,13 @@ jobs:
               }
             }`;
             
-            // Set the start of today in ISO format
+            // Set the start of today
             const today = new Date();
             today.setHours(0,0,0,0);
             
             const variables = {
               username: username,
-              since: today.toISOString()
+              from: today.toISOString()
             };
             
             console.log('Querying with variables:', variables);
