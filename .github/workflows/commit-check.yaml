@@ -2,8 +2,8 @@ name: Check Daily Commits
 
 on:
   schedule:
-    # Runs at 930 PM PST every day
-    - cron: '30 5 * * *'
+    # Runs at 9:30 PM Pacific time every day
+    - cron: '30 21 * * *'
   workflow_dispatch: 
 
 jobs:
@@ -123,6 +123,7 @@ jobs:
     env:
       WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
       WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+      TZ: America/Los_Angeles
 
 permissions:
   contents: read
